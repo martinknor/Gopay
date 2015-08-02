@@ -167,17 +167,41 @@ $storeIdCallback = function ($paymentId) use ($order) {
 ```
 
 A nakonec s platbou zaplatíte :) (takto, druhý parametr je platební kanál,
-kterým má být platba uskutečněna):
+kterým má být platba uskutečněna, třetí parametr udává, jestli platbu budete uskutečňovat pomocí 
+nové INLINE platební brány a nebo pomocí starého přesměrování):
 
 ```php
-$response = $gopay->pay($payment, $gopay::METHOD_TRANSFER, $storeIdCallback);
+$response = $gopay->pay($payment, $gopay::METHOD_TRANSFER, $gopay::PAYMENT_REDIRECT, $storeIdCallback);
 ```
 
-Akce `pay()` vrátí `Response` objekt, který aplikaci přesměruje na platební
+Akce `pay()` vrátí `Response` objekt v případě, že se třetí parametr nastaví na PAYMENT_REDIRECT, který aplikaci přesměruje na platební
 bránu Gopay.
 
 ```php
 $this->sendResponse($response);
+```
+
+V případě že zavoláte funkci `pay()` s třetím parametrem PAYMENT_INLINE, tak Vám akce `pay()` vrátí pole podobné tomuto
+
+```php
+[ 
+    "url" => "https://gate.gopay.cz/gw/v3/3100000099",
+    "signature" => "25ee53a1ec­cc253a8310f5267d2de6b483f58a­f9676d883e26600ce3316ai"
+];
+```
+
+Což Vám vrátí vše potřebné k implementaci nové Inline platební brány. 
+
+A platební bránu je možné vytvořit pomocí formuláře, který najdete v [dokumentaci!](https://help.gopay.com/cs/tema/integrace-platebni-brany/integrace-nova-platebni-brany/integrace-nove-platebni-brany-pro-stavajici-zakazniky)
+
+Pro příklad je to tento formulář
+
+```html
+<form action="https://gate.gopay.cz/gw/v3/3100000099" method="post" id="gopay-payment-button">
+  <input type="hidden" name="signature" value="25ee53a1ec­cc253a8310f5267d2de6b483f58a­f9676d883e26600ce3316ai"/>
+  <button name="pay" type="submit">Zaplatit</button>
+  <script type="text/javascript" src="https://gate.gopay.cz/gp-gw/js/embed.js"></script>
+</form>
 ```
 
 V okamžiku zavolání `pay()` se mohou pokazit dvě věci:
@@ -192,7 +216,7 @@ straně.
 
 ```php
 try {
-	$gopay->pay($payment, $gopay::TRANSFER);
+	$gopay->pay($payment, $gopay::TRANSFER, $gopay::PAYMENT_REDIRECT, $storeIdCallback);
 } catch (GopayException $e) {
 	echo 'Platební služba Gopay bohužel momentálně nefunguje. Zkuste to
 	prosím za chvíli.';
@@ -250,7 +274,7 @@ Příklad použití `gopay` služby si můžete prohlédnout v [ukázkovém pres
 
 ## Co tahle věc neumí a co s tím
 
-Tahle mini-knihovnička, spíše snippet kódu nepokrývá velkou část Gopay API.
+Tahle mini-knihovnička, spíše snippet kódu ne pokrývá velkou část Gopay API.
 Pokud vám v ní chybí, co potřebujete, laskavě si potřebnou část dopište,
 klidně i pošlete jako pull-request. Stejně tak můžete v issues informovat
 o aktualizaci oficiálního API (které se zrovna před nedávném rozšířilo).
