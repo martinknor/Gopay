@@ -82,6 +82,10 @@ class Service extends Nette\Object
 	/** @const Platbu vybere uživatel */
 	const METHOD_USER_SELECT = NULL;
 
+	/** @const Metoda platby INLINE */
+	const PAYMENT_INLINE = 'INLINE';
+	/** @const Metoda platby přesměrování */
+	const PAYMENT_REDIRECT = 'REDIRECT';
 
 	/** @const Czech koruna */
 	const CURRENCY_CZK = 'CZK';
@@ -344,7 +348,7 @@ class Service extends Nette\Object
 	 * @throws GopayFatalException on maldefined parameters
 	 * @throws GopayException on failed communication with WS
 	 */
-	public function pay(Payment $payment, $channel, $callback)
+	public function pay(Payment $payment, $channel, $method, $callback)
 	{
 		if ($payment instanceof ReturnedPayment) {
 			throw new \InvalidArgumentException("Cannot use instance of 'ReturnedPayment'! This payment has been already used for paying");
@@ -382,13 +386,27 @@ class Service extends Nette\Object
 			throw new GopayException($e->getMessage(), 0, $e);
 		}
 
-		$url = GopayConfig::fullIntegrationURL()
-			. "?sessionInfo.targetGoId=" . $this->gopayId
-			. "&sessionInfo.paymentSessionId=" . $paymentSessionId
-			. "&sessionInfo.encryptedSignature=" . $this->createSignature($paymentSessionId);
-
 		Nette\Utils\Callback::invokeArgs($callback, array($paymentSessionId));
-		return new RedirectResponse($url);
+
+		$response = NULL;
+
+		if ($method == self::PAYMENT_REDIRECT) {
+			$url = GopayConfig::fullIntegrationURL()
+				. "?sessionInfo.targetGoId=" . $this->gopayId
+				. "&sessionInfo.paymentSessionId=" . $paymentSessionId
+				. "&sessionInfo.encryptedSignature=" . $this->createSignature($paymentSessionId);
+
+			$response = new RedirectResponse($url);
+		}
+		else if ($method == self::PAYMENT_INLINE)
+		{
+			$response = [
+				"url" => GopayConfig::fullNewIntegrationURL() . '/' . $paymentSessionId,
+				"signature" => $this->createSignature($paymentSessionId)
+			];
+		}
+
+		return $response;
 	}
 
 
